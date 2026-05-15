@@ -15,6 +15,7 @@
 ## Logiciel
 - Micropython, HTML
 - Librairie ssd1306 appartenant à **stlehmann**
+- Librairie tb6621fng appartenant à **AtilaELMAS**
 
 ## Auteurs
 - Noémie L

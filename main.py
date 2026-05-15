@@ -1,8 +1,30 @@
+from picozero import pico_led
 import network
 import socket
-import time, utime
+import time
 import machine
 from ssd1306 import SSD1306_I2C
+from TB6612FNG import Motor
+import utime
+
+pico_led.on()
+
+
+
+
+frequency = 50
+
+BIN2 = 19 # 
+BIN1 = 20 # 
+STBY = 22 #
+AIN1 = 21 #
+AIN2 = 18 #
+PWMA = 27
+PWMB = 26
+ofsetA = 1
+ofsetB = 1
+
+motor = Motor(BIN2,BIN1,STBY,AIN1,AIN2,PWMA,PWMB,ofsetA,ofsetB)
 
 i2c = machine.I2C(sda=machine.Pin(16), scl=machine.Pin(17))
 i2c.scan()
@@ -26,20 +48,22 @@ def apply_deadzone(v, dz=0.08):
 
 def set_motors(x, y):
 
-    x = apply_deadzone(x)
-    y = apply_deadzone(y)
+    #x = apply_deadzone(x)
+    #y = apply_deadzone(y)
 
-    left = y + x
-    right = y - x
+    #left = y + x
+    #right = y - x
 
-    left = max(-1, min(1, left))
-    right = max(-1, min(1, right))
+    #left = max(-1, min(1, left))
+    #right = max(-1, min(1, right))
     
     length = 100
     width = 50
     
     a = 61 + int(x*(width//2))
     b = 30 - int(y*(width//2))
+    
+    print(x, y, a, b)
     
     
     oled.fill(0)
@@ -48,6 +72,28 @@ def set_motors(x, y):
     oled.text('x', a, b,1)
 
     oled.show()
+    
+    if abs(x)>0.3 or abs(y)>0.3:
+        if x>0.3 and x<0.7:
+            motor.forward(32000)
+        elif x>=0.7:
+            motor.forward(65000)
+        elif x<-0.3 and x>-0.7:
+            motor.backward(32000)
+        elif x<-0.7:
+            motor.backward(64000)
+        else:
+            if y>0.3 and y<0.7:
+                motor.right(32000)
+            elif y>=0.7:
+                motor.right(65000)
+            elif y<-0.3 and y>-0.7:
+                motor.left(32000)
+            elif y<-0.7:
+                motor.left(64000)
+    else:
+        motor.stop()
+        
 
 
 html = open("index.html").read()  # ou coller si tu préfères
@@ -98,4 +144,5 @@ while True:
 
 
     cl.close()
+
 
