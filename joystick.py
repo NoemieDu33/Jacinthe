@@ -38,24 +38,59 @@ ap.config(essid="Jacinthe", password="MASCARPONE")
 
 print("IP:", ap.ifconfig())
 
-dir = "NONE"
+x = 0
+y = 0
 
-def set_motors(dir):
+def apply_deadzone(v, dz=0.08):
+    if abs(v) < dz:
+        return 0
+    return v
 
-    oled.fill(0)
+def set_motors(x, y):
+
+    #x = apply_deadzone(x)
+    #y = apply_deadzone(y)
+
+    #left = y + x
+    #right = y - x
+
+    #left = max(-1, min(1, left))
+    #right = max(-1, min(1, right))
     
-    oled.text(dir, 50,32,1)
+    length = 100
+    width = 50
+    
+    a = 61 + int(x*(width//2))
+    b = 30 - int(y*(width//2))
+    
+    print(x, y, a, b)
+    
+    
+    oled.fill(0)
+    oled.ellipse(64,32,(width//2)+6, (width//2)+6,1)
+    
+    oled.text('x', a, b,1)
 
     oled.show()
     
-    if dir == "UP":
-        motor.forward(40000)
-    elif dir == "DOWN":
-        motor.backward(40000)
-    elif dir == "LEFT":
-        motor.left(40000)
-    elif dir == "RIGHT":
-        motor.right(40000)
+    if abs(x)>0.3 or abs(y)>0.3:
+        if x>0.3 and x<0.7:
+            motor.forward(32000)
+        elif x>=0.7:
+            motor.forward(65000)
+        elif x<-0.3 and x>-0.7:
+            motor.backward(32000)
+        elif x<-0.7:
+            motor.backward(64000)
+        else:
+            if y>0.3 and y<0.7:
+                motor.right(32000)
+            elif y>=0.7:
+                motor.right(65000)
+            elif y<-0.3 and y>-0.7:
+                motor.left(32000)
+            elif y<-0.7:
+                motor.left(64000)
     else:
         motor.stop()
         
@@ -69,11 +104,8 @@ s.bind(addr)
 s.listen(1)
 #s.settimeout(1)
 
-ijk = 0
 
 while True:
-    
-    ijk += 1   
 
     cl, addr = s.accept()
     req = cl.recv(1024).decode()
@@ -91,23 +123,26 @@ while True:
     # ========= JOYSTICK =========
     elif "GET /move?" in req:
 
-        print(req)
+        qs = req.split("/move?")[1].split(" ")[0]
 
-        try:
-            qs = req.split("/move?dir=")[1].split(" ")[0]
+        params = {}
 
-            print("DIR =", qs)
+        for p in qs.split("&"):
+            k, v = p.split("=")
+            params[k] = float(v)
 
-            set_motors(qs)
+        x = params["x"]
+        y = params["y"]
 
-        except Exception as e:
-            print("ERROR:", e)
+        set_motors(x, y)
 
         cl.send("HTTP/1.1 200 OK\r\n")
         cl.send("Content-Type: text/plain\r\n")
         cl.send("Connection: close\r\n\r\n")
         cl.send("OK")
-    cl.close()
 
+
+
+    cl.close()
 
 

@@ -3,181 +3,156 @@
 
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
 
+<style>
 body {
     margin: 0;
     background: #111;
     overflow: hidden;
     touch-action: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: Arial;
 }
 
-#base {
-    position: absolute;
-    width: 240px;
-    height: 240px;
+#controls {
+    display: grid;
+    grid-template-columns: 120px 120px 120px;
+    grid-template-rows: 120px 120px 120px;
+    gap: 20px;
+}
+
+button {
+    border: none;
+    border-radius: 20px;
     background: #333;
-    border-radius: 50%;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
 }
 
-#stick {
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    background: white;
-    border-radius: 50%;
-    left: 70px;
-    top: 70px;
+button:active {
+    background: #666;
 }
+
+#up {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+#left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+#right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+#down {
+    grid-column: 2;
+    grid-row: 3;
+}
+
 #debug {
     position: absolute;
     top: 20px;
     left: 20px;
     color: white;
-    font-family: Arial;
     font-size: 20px;
 }
 </style>
 </head>
 
 <body>
+
 <div id="debug">
-X: 0.00<br>
-Y: 0.00
+DIRECTION: NONE
 </div>
-<div id="base">
-    <div id="stick"></div>
+
+<div id="controls">
+    <button id="up">U</button>
+    <button id="left">L</button>
+    <button id="right"R</button>
+    <button id="down">D</button>
 </div>
 
 <script>
 
-const base = document.getElementById("base");
-const stick = document.getElementById("stick");
 const debug = document.getElementById("debug");
 
-let dragging = false;
-let lastSend = 0;
+let currentDir = "NONE";
 
-// smoothing
-let fx = 0;
-let fy = 0;
-let currentX = 0;
-let currentY = 0;
-
-function clamp(v, min, max) {
-    return Math.max(min, Math.min(max, v));
+function send(dir) {
+    fetch("/move?dir=" + dir)
+        .catch(err => console.log(err));
 }
 
-function send(x, y) {
-    fetch(`/move?x=${x}&y=${y}`);
+function updateDebug() {
+    debug.innerHTML = "DIRECTION: " + currentDir;
 }
 
-function update(clientX, clientY) {
+function setDirection(dir) {
 
-    const rect = base.getBoundingClientRect();
-
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-
-    let dx = clientX - cx;
-    let dy = clientY - cy;
-
-    const max = 90;
-
-    const dist = Math.sqrt(dx*dx + dy*dy);
-
-    if (dist > max) {
-        dx = dx / dist * max;
-        dy = dy / dist * max;
+    if (currentDir !== dir) {
+        currentDir = dir;
+        updateDebug();
+        console.log("SEND:", dir);
     }
-
-    // move stick visually
-    stick.style.left = (dx + 70) + "px";
-    stick.style.top  = (dy + 70) + "px";
-
-    let x = dx / max;
-    let y = -dy / max;
-
-    // DEADZONE
-    const dead = 0.12;
-    if (Math.abs(x) < dead) x = 0;
-    if (Math.abs(y) < dead) y = 0;
-
-    // SMOOTHING
-    fx = fx * 0.7 + x * 0.3;
-    fy = fy * 0.7 + y * 0.3;
-
-    fx = clamp(fx, -1, 1);
-    fy = clamp(fy, -1, 1);
-
-
-    currentX = fx.toFixed(2);
-    currentY = fy.toFixed(2);
-
-    // DEBUG DISPLAY
-    debug.innerHTML =
-        "X: " + fx.toFixed(2) + "<br>" +
-        "Y: " + fy.toFixed(2);
 }
 
-// START
-function start(e) {
-    dragging = true;
+function stopDirection() {
+
+    currentDir = "NONE";
+    updateDebug();
+
+    console.log("SEND: NONE");
 }
 
-// MOVE
-function move(e) {
-    if (!dragging) return;
+function bindButton(id, dir) {
 
-    const t = e.touches[0];
-    update(t.clientX, t.clientY);
+    const btn = document.getElementById(id);
+
+    // MOBILE
+    btn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        setDirection(dir);
+    });
+
+    btn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        stopDirection();
+    });
+
+    // PC
+    btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        setDirection(dir);
+    });
+
+    btn.addEventListener("mouseup", (e) => {
+        e.preventDefault();
+        stopDirection();
+    });
 }
 
-// STOP (IMPORTANT FIX)
-function stop() {
-    dragging = false;
+bindButton("up", "UP");
+bindButton("down", "DOWN");
+bindButton("left", "LEFT");
+bindButton("right", "RIGHT");
 
-    // reset visual stick
-    stick.style.left = "70px";
-    stick.style.top  = "70px";
-
-    // reset values
-    fx = 0;
-    fy = 0;
-    currentX = 0;
-    currentY = 0;
-
-    send(0, 0);
-
-    debug.innerHTML =
-        "X: 0.00<br>Y: 0.00";
-}
-
-// EVENTS (FIX IMPORTANT)
-base.addEventListener("touchstart", start);
-base.addEventListener("touchmove", move);
-
-document.addEventListener("touchend", stop);
-document.addEventListener("touchcancel", stop);
-
-// OPTIONAL: mouse support (PC)
-base.addEventListener("mousedown", start);
-
-document.addEventListener("mousemove", (e) => {
-    if (!dragging) return;
-    update(e.clientX, e.clientY);
-});
-
-document.addEventListener("mouseup", stop);
-
+// envoi périodique
 setInterval(() => {
-    send(currentX, currentY);
-}, 100);
+    send(currentDir);
+}, 200);
+
+updateDebug();
 
 </script>
+
 
 </body>
 </html>
